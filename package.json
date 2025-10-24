@@ -25,7 +25,6 @@
   },
   "homepage": "https://github.com/ivogabriel19/PRODE_F1#readme",
   "dependencies": {
-    "@supabase/supabase-js": "^2.49.8",
     "bcryptjs": "^3.0.2",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
