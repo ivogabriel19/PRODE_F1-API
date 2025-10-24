@@ -13,7 +13,7 @@ body {
     width: 100vw;
 }
 
-ul{
+ul {
     list-style: none;
     gap: 0.5rem;
     padding: 0.25rem;
@@ -42,7 +42,7 @@ h1 {
     padding-inline: 1.5rem;
     background-color: #ff3c2b55;
     border-radius: 0.25rem;
-    margin-bottom: 3rem;
+    margin: 0.35rem;
 }
 
 /* Formulario */
@@ -112,6 +112,11 @@ button:hover {
     height: 90%;
 }
 
+#notif-dropdown {
+    background-color: #333B;
+    width: 35rem;
+}
+
 /* Resultados */
 #resultado {
     margin-top: 2rem;
@@ -177,36 +182,6 @@ button:hover {
     font-size: 18px;
 }
 
-/* RESPONSIVE */
-@media (max-width: 800px) {
-    .btn-flotante .texto {
-        display: none;
-    }
-
-    .btn-flotante {
-        padding: 12px;
-        font-size: 20px;
-        border-radius: 50%;
-        width: 48px;
-        height: 48px;
-        justify-content: center;
-    }
-}
-
-@media (max-width: 600px) {
-    form {
-        padding: 0 1rem;
-    }
-
-    input,
-    button {
-        font-size: 1rem;
-    }
-
-    .resultado-item {
-        padding: 1rem;
-    }
-}
 
 .modal {
     display: none;
@@ -277,7 +252,7 @@ button:hover {
 .contenedor-tabla thead {
     background-color: #1e3a8a;
     /* azul oscuro /
-color: #ffffff; / texto blanco */
+    color: #ffffff; / texto blanco */
 }
 
 .contenedor-tabla th {
@@ -316,18 +291,6 @@ color: #ffffff; / texto blanco */
     content: "🥉 ";
 }
 
-/* Responsive */
-@media (max-width: 600px) {
-    .contenedor-tabla {
-        padding: 10px;
-        font-size: 14px;
-    }
-
-    .contenedor-tabla th,
-    .contenedor-tabla td {
-        padding: 8px;
-    }
-}
 
 .nav-container .nav-buttons {
     display: flex;
@@ -337,6 +300,7 @@ color: #ffffff; / texto blanco */
 
 .navbar {
     display: flex;
+    gap: 0.75rem;
 }
 
 .user-section {
@@ -373,3 +337,54 @@ color: #ffffff; / texto blanco */
     display: block;
 }
 
+.navBtn {
+    color: white;
+    text-decoration: none;
+}
+
+/* Responsive */
+@media (max-width: 800px) {
+    .btn-flotante .texto {
+        display: none;
+    }
+
+    .btn-flotante {
+        padding: 12px;
+        font-size: 20px;
+        border-radius: 50%;
+        width: 48px;
+        height: 48px;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 600px) {
+    form {
+        padding: 0 1rem;
+    }
+
+    input,
+    button {
+        font-size: 1rem;
+    }
+
+    .resultado-item {
+        padding: 1rem;
+    }
+
+    .contenedor-tabla {
+        padding: 10px;
+        font-size: 14px;
+    }
+
+    .contenedor-tabla th,
+    .contenedor-tabla td {
+        padding: 8px;
+    }
+}
+
+@media (max-width: 400px) {
+    .navBtnTxt {
+        display: none;
+    }
+}

@@ -40,7 +40,7 @@ export async function login(req, res) {
 
     const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: "7d" });
     console.log("tokenJWT de",username,":", token);
-    res.status(200).json({ success: true, token });
+    res.status(200).json({ token });
   } catch (err) {
     console.error("🧨 Error en login:", err);
     res.status(500).json({ message: "Error al iniciar sesión", error: err.message });
