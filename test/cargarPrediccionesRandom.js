@@ -1,159 +1,139 @@
-import {obtenerFechaCarrera} from "../src/services/obtenerFechaCarrera.js"
+// test/cargarPrediccionesRandom.js
+// ¡ESTO NO ES UN TEST DE JEST! Es un script de utilidad.
+// Ejecútalo con: node test/cargarPrediccionesRandom.js
 
-const year = 2025;
+import fetch from 'node-fetch'; // Necesitarás 'node-fetch' o similar
+import { obtenerFechaCarrera } from "../src/services/obtenerFechaCarrera.js";
+
+const year = 2024; // O el año que estés probando
+const API_URL = "http://localhost:3000"; // Tu API local
 
 function getRandom(c) {
   const indiceAleatorio = Math.floor(Math.random() * c.length);
   return c[indiceAleatorio];
 }
 
-async function login() {
+async function login(username, password) {
   try {
-    const usr = getUserRandom();
-    console.log("Logueando a :", usr);
-    const response = await fetch("http://localhost:3000/api/auth/login", {
+    console.log(`Logueando a: ${username}`);
+    const response = await fetch(`${API_URL}/api/auth/login`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        username: usr,
-        password: usr,
-      }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
     });
 
-    //console.log("Respuesta del login:", response.status);
-
     if (!response.ok) throw new Error(`Error: ${response.status}`);
-
     const data = await response.json();
-    //console.log("Cuerpo del login:", data);
-
-    if (data.token) {
-      //console.log("Login exitoso. Token recibido:", data.token);
-      return data.token;
-    } else {
-      //console.error("No se recibió el token.");
-      return null;
-    }
+    return data.token;
   } catch (error) {
-    console.error("Error en login:", error);
+    console.error(`Error en login para ${username}:`, error.message);
     return null;
   }
 }
 
 function getUserRandom() {
   const users = [
-    "ivogabriel",
-    "user1",
-    "user2",
-    "user3"
+    { user: "ivogabriel", pass: "ivogabriel" },
+    { user: "user1", pass: "user1" },
+    { user: "user2", pass: "user2" },
+    { user: "user3", pass: "user3" }
+    // Asume que estos usuarios ya están registrados en tu BD
   ];
   return getRandom(users);
 }
 
 async function getCarreraRandom(anio) {
-  return await fetch(`http://localhost:3000/api/obtener/carreras/${anio}`)
-    .then((response) => {
-      if (!response.ok) {
-        throw new Error(`Error: ${response.status}`);
-      }
-      return response.json();
-    })
-    .then((data) => {
-      //console.log("Peticion procesada, respuesta del servidor:", data);
-      return getRandom(data.carreras);
-    })
-    .catch((error) => {
-      console.error("Error al obtener carreras:", error);
-    });
+  try {
+    const response = await fetch(`${API_URL}/api/obtener/carreras/${anio}`);
+    if (!response.ok) throw new Error(`Error: ${response.status}`);
+    const carreras = await response.json(); // La API ahora devuelve un array
+    return getRandom(carreras).raceId; // Asumo que el ID se llama 'raceId'
+  } catch (error) {
+    console.error("Error al obtener carreras:", error);
+    return null;
+  }
 }
 
 async function getPrediccionRandom(anio) {
   try {
-    const response = await fetch(`http://localhost:3000/api/obtener/conductores/${anio}`);
+    const response = await fetch(`${API_URL}/api/obtener/conductores/${anio}`);
     if (!response.ok) throw new Error(`Error: ${response.status}`);
+    const conductores = await response.json(); // La API ahora devuelve un array
 
-    const data = await response.json();
-    const conductores = data.conductores;
+    if (conductores.length < 3) throw new Error("No hay suficientes conductores");
 
-    if (conductores.length < 3) {
-      throw new Error("No hay suficientes conductores para armar una predicción.");
-    }
-
-    // Elegimos 3 distintos aleatorios
-    const seleccionados = [];
-    while (seleccionados.length < 3) {
-      const elegido = getRandom(conductores);
-      if (!seleccionados.includes(elegido)) {
-        seleccionados.push(elegido);
+    const seleccionados = {};
+    while (Object.keys(seleccionados).length < 3) {
+      const elegido = getRandom(conductores).driverId;
+      if (!Object.values(seleccionados).includes(elegido)) {
+        if (!seleccionados.p1) seleccionados.p1 = elegido;
+        else if (!seleccionados.p2) seleccionados.p2 = elegido;
+        else if (!seleccionados.p3) seleccionados.p3 = elegido;
       }
     }
-
-    return {
-      P1: seleccionados[0],
-      P2: seleccionados[1],
-      P3: seleccionados[2],
-    };
+    return seleccionados;
   } catch (error) {
     console.error("Error al obtener conductores:", error);
-    return [];
+    return null;
   }
 }
 
 async function cargarPredic(year, token) {
-  //console.log(year, token);
-  let carreraACargar = await getCarreraRandom(year);
-  let prediccionACargar = await getPrediccionRandom(year);
-  //let fechaCarrera = await obtenerFechaCarrera(year, carreraACargar);
+  const carreraACargar = await getCarreraRandom(year);
+  const prediccionACargar = await getPrediccionRandom(year);
 
-  console.log("Cargando el podio ", prediccionACargar, " para la carrera ", carreraACargar, year);
+  if (!carreraACargar || !prediccionACargar) {
+    console.error("No se pudo obtener carrera o predicción, saltando...");
+    return;
+  }
 
-  //Peticion1
-  await fetch("http://localhost:3000/api/predictions/submit", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({
-      raceYear: year,
-      raceId: carreraACargar,
-      //raceDate: fechaCarrera,
-      prediccion: prediccionACargar,
-    }),
-  })
-    .then((response) => {
-      if (!response.ok) {
-        console.error("Error en la petición:", response, "code:", response.status);
-        throw new Error(`Error: ${response.status}`);
-      }
-      return response.json();
-    })
-    .then((data) => {
-      console.log("Peticion procesada, respuesta del servidor:", data);
-      return data;
-    })
-    .catch((error) => {
-      console.error("Error al enviar la predicción:", error);
+  console.log(`Cargando podio ${JSON.stringify(prediccionACargar)} para la carrera ${carreraACargar} (${year})`);
+
+  try {
+    // Usamos la ruta POST /api/predictions que creamos
+    const response = await fetch(`${API_URL}/api/predictions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        raceYear: year,
+        raceId: carreraACargar,
+        prediccion: prediccionACargar,
+      }),
     });
-}
 
-// (() => {
-//   getPrediccionRandom(year).then((res) => {
-//     console.log("Pdio ", res);
-//   });
-// })();
-
-async function main() {
-  const token = await login();
-  //console.log("Token obtenido:", token);
-  if (token) {
-    await cargarPredic(year, token);
-  } else {
-    console.error("No se pudo obtener el token.");
+    const data = await response.json();
+    if (!response.ok) {
+      console.error(`Error al enviar predicción [${response.status}]: ${data.message}`);
+    } else {
+      console.log("Respuesta del servidor:", data.message);
+    }
+  } catch (error) {
+    console.error("Error fatal al enviar la predicción:", error);
   }
 }
 
-for (let i = 0; i < 10; i++) await main(); 
-//FIXME: no espera a que termine una para iniciar la siguiente
+async function main() {
+  const { user, pass } = getUserRandom();
+  const token = await login(user, pass);
+  
+  if (token) {
+    await cargarPredic(year, token);
+  } else {
+    console.error(`No se pudo obtener token para ${user}.`);
+  }
+}
+
+// --- Bucle Principal Corregido ---
+// Esta función IIFE (autoejecutable) asegura que el bucle for
+// espere a que termine cada 'main()' antes de empezar el siguiente.
+(async () => {
+  console.log("--- Iniciando carga de 10 predicciones random ---");
+  for (let i = 0; i < 10; i++) {
+    console.log(`\n--- Predicción #${i + 1} ---`);
+    await main();
+  }
+  console.log("\n--- Carga finalizada ---");
+})();

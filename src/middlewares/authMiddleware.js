@@ -1,33 +1,56 @@
-import jwt from "jsonwebtoken";
-import User from "../models/user.js";
+import jwt from 'jsonwebtoken';
+import dotenv from 'dotenv';
+import User from '../models/user.js'; // Necesitamos el modelo para buscar al usuario
 
-export async function verificarJWT(req, res, next) {
-  const authHeader = req.headers.authorization;
-  //console.log("Verificando JWT... ", authHeader);
-  if (!authHeader) return res.redirect('/api/auth/login');
-  const token = authHeader.split(" ")[1];
+dotenv.config();
 
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    //console.log("Usuario autenticado:", decoded.userId);
-    req.userId = decoded.userId;
+const JWT_SECRET = process.env.JWT_SECRET;
 
-    const user = await User.findById(decoded.userId);
-    if (!user) return res.redirect('/api/auth/login');
-    req.user = user;
+// --- Middleware de Protección ---
+// Verifica si el usuario está autenticado
+export const protect = async (req, res, next) => {
+    let token;
 
-    next();
-  } catch (err) {
-    return res.redirect('/api/auth/login');
-  }
-}
+    // 1. Leer el token del header "Authorization"
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+        try {
+            // 2. Obtener el token (formato: "Bearer TOKEN...")
+            token = req.headers.authorization.split(' ')[1];
 
-export function verificarRol(requerido) {
-  return async (req, res, next) => {
-    //console.log("Verificando rol del usuario:", req.user?.role);
-    if (requerido === "any") return next();
-    if (req.user?.role === requerido) return next();
-    return res.status(403).json({ error: "Acceso denegado." });
-  };
-}
+            // 3. Verificar el token
+            const decoded = jwt.verify(token, JWT_SECRET);
 
+            // 4. Buscar al usuario por el ID del token y adjuntarlo al 'req'
+            // Excluimos la contraseña del objeto 'user'
+            req.user = await User.findById(decoded.id).select('-password');
+            
+            if (!req.user) {
+                 return res.status(401).json({ message: 'Usuario no encontrado' });
+            }
+
+            // 5. Continuar con la siguiente función (el controlador)
+            next();
+
+        } catch (error) {
+            console.error(error);
+            // Si el token falla (expirado, inválido)
+            return res.status(401).json({ message: 'No autorizado, token falló' });
+        }
+    }
+
+    // 6. Si no hay token o no tiene el formato "Bearer"
+    if (!token) {
+        return res.status(401).json({ message: 'No autorizado, no hay token' });
+    }
+};
+
+// --- Middleware de Administración ---
+// Verifica si el usuario es Admin (después de 'protect')
+export const admin = (req, res, next) => {
+    // Primero debe pasar por 'protect', por lo que 'req.user' debe existir
+    if (req.user && req.user.role === 'admin') {
+        next(); // Es admin, continuar
+    } else {
+        res.status(403).json({ message: 'No autorizado, se requiere rol de administrador' });
+    }
+};

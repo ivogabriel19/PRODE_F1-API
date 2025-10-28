@@ -1,14 +1,20 @@
+// src/routes/userRoutes.js
 import express from 'express';
-import { registerUser } from '../controllers/userController.js';
-import { obtenerLeaderboard } from '../controllers/userController.js';
+// ELIMINADO: registerUser ya no vive en userController
+import { obtenerLeaderboard } from '../controllers/userController.js'; 
 import { getNotificaciones, checkNotificacion } from '../controllers/notificationController.js';
-import { verificarJWT } from '../middlewares/authMiddleware.js';
+import { protect } from '../middlewares/authMiddleware.js'; // Middleware NUEVO
 
 const router = express.Router();
 
-router.post('/register', registerUser);
+// --- Rutas Públicas ---
 router.get('/leaderboard', obtenerLeaderboard);
-router.get('/notificaciones', verificarJWT, getNotificaciones);
-router.post('/notificaciones/:id/leida', verificarJWT, checkNotificacion);
+
+// ELIMINADO: router.post('/register', registerUser); (Movido a authRoutes)
+
+// --- Rutas Privadas (para el usuario logueado) ---
+router.get('/notificaciones', protect, getNotificaciones);
+// Cambiado a PUT, es más correcto para una actualización
+router.put('/notificaciones/:id/leida', protect, checkNotificacion); 
 
 export default router;

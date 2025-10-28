@@ -1,3 +1,5 @@
+import fetch from 'node-fetch';
+
 export async function obtenerFechaCarrera(year, raceName) {
   try {
     const res = await fetch(`https://api.jolpi.ca/ergast/f1/${year}.json`);

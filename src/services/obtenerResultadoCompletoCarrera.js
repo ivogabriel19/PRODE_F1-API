@@ -1,4 +1,5 @@
 import {obtenerRoundPorNombre} from './obtenerRoundPorNombre.js';
+import fetch from 'node-fetch';
 
 export async function obtenerResultadoCompletoCarrera(nombreCarrera, year) {
     try {

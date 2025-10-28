@@ -1,145 +1,181 @@
 import Prediction from "../models/prediction.js";
-import { calcularPuntajePrediccion } from "../utils/calcularPuntajePrediccion.js";
 import { verificarFechaCarrera } from "../services/verificarFechaCarrera.js";
 import { obtenerResultadoCarrera } from "../services/obtenerResultadoCarrera.js"; 
 import { obtenerFechaCarrera } from "../services/obtenerFechaCarrera.js"; 
+// NOTA: 'calcularPuntajePrediccion' no se usa en este controlador.
+// Se usará en 'adminController' o 'resultadosController' 
+// cuando se procesen los puntajes para TODOS los usuarios.
 
-// export async function submitPrediction(req, res) {
-//   procesarPrediction(req, res)
-// }
-
-/*
-export async function submitPrediction(req, res) {
-  const { userId, raceId, raceYear, predictions } = req.body;
-
-  try {
-    // Obtener resultados reales de la carrera desde la API
-    const resultadosReales = await obtenerResultadoCarrera(raceId, raceYear);
-
-    if (!resultadosReales) {
-      return res
-        .status(404)
-        .json({ message: "No se encontraron resultados para esa carrera." });
-    }
-
-    // Calcular puntaje
-    const points = calcularPuntajePrediccion(predictions, resultadosReales);
-
-    // Crear y guardar la predicción
-    const newPrediction = new Prediction({
-      user: userId,
-      raceId,
-      raceYear,
-      predictions,
-      points,
-    });
-
-    await newPrediction.save();
-
-    res.status(201).json(newPrediction);
-  } catch (err) {
-    console.error("Error al guardar predicción:", err);
-    res
-      .status(400)
-      .json({ message: "Error al guardar predicción", error: err });
-  }
-}
-*/
-
+/**
+ * @desc    Crear una nueva predicción
+ * @route   POST /api/predictions
+ * @access  Private
+ */
 export const crearPrediccion = async (req, res) => {
-  const { raceYear, raceId, prediccion } = req.body;
-  const userId = req.userId;
-  const raceDate = await obtenerFechaCarrera(raceYear, raceId);
-  console.log("Prediccion recibida:", prediccion);
+    // req.user es insertado por el middleware 'protect'
+    const userId = req.user.id; 
+    const { raceYear, raceId, prediccion } = req.body;
 
-  try {
-    const nueva = new Prediction({ userId,  raceId, raceYear, raceDate, prediccion });
+    if (!raceYear || !raceId || !prediccion) {
+        return res.status(400).json({ message: "Faltan datos (raceYear, raceId, prediccion)" });
+    }
 
-    const existing = await Prediction.findOne({ userId,raceYear,raceId});
+    try {
+        // 1. Verificar si la carrera ya se corrió (o está por empezar)
+        // Asumimos que verificarFechaCarrera devuelve 'true' SI AÚN SE PUEDE PREDECIR
+        const sePuedePredecir = await verificarFechaCarrera(raceYear, raceId); 
+        if (!sePuedePredecir) {
+            return res.status(400).json({ message: "No se puede predecir, la carrera ya comenzó o finalizó." });
+        }
 
-    if (existing)
-      return res.status(400).json({ message: "Ya enviaste una predicción para esta carrera." });
+        // 2. Verificar si ya existe una predicción para esta carrera
+        const existing = await Prediction.findOne({ userId, raceYear, raceId });
+        if (existing) {
+            return res.status(400).json({ message: "Ya enviaste una predicción para esta carrera." });
+        }
 
-    await nueva.save();
-    res.status(201).json({message:nueva});
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+        // 3. Obtener la fecha de la carrera para guardarla (opcional pero útil)
+        const raceDate = await obtenerFechaCarrera(raceYear, raceId);
+
+        // 4. Crear y guardar la nueva predicción
+        const nuevaPrediccion = new Prediction({ 
+            userId, 
+            raceId, 
+            raceYear, 
+            raceDate, 
+            prediccion 
+        });
+        
+        const savedPrediction = await nuevaPrediccion.save();
+        
+        res.status(201).json({ message: "Predicción creada con éxito", prediccion: savedPrediction });
+
+    } catch (err) {
+        console.error("Error en crearPrediccion:", err.message);
+        res.status(500).json({ message: "Error del servidor", error: err.message });
+    }
 };
 
+/**
+ * @desc    Obtener todas las predicciones del usuario logueado
+ * @route   GET /api/predictions/mis-predicciones
+ * @access  Private
+ */
 export const obtenerMisPredicciones = async (req, res) => {
-  try {
-    const predicciones = await Prediction.find({ userId: req.userId });
-    res.json(predicciones);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    try {
+        const predicciones = await Prediction.find({ userId: req.user.id })
+                                            .sort({ raceDate: 1 }); // Ordenadas por fecha
+        res.json(predicciones);
+    } catch (err) {
+        res.status(500).json({ message: "Error del servidor", error: err.message });
+    }
 };
 
+/**
+ * @desc    Actualizar una predicción existente
+ * @route   PUT /api/predictions/:id
+ * @access  Private
+ */
 export const actualizarPrediccion = async (req, res) => {
-  const { id } = req.params;
-  const userId = req.userId;//FIXME: OJOO
-  const prediction = await Prediction.findById(id);
+    const { id } = req.params; // ID de la predicción
+    const { prediccion: nuevosDatos } = req.body; // Los nuevos datos de la predicción
 
-  // if (!prediction || prediction.userId.toString() !== req.user.userId) {
-  //   return res.status(403).json({ message: "No autorizado" });
-  // }
+    try {
+        const prediction = await Prediction.findById(id);
 
-  //FIXME: la API no tiene cargadas las carreras 2025
-  //const carreraAunNoCorrio = await verificarFechaCarrera(prediction.raceYear,prediction.raceName);
-  //if (!carreraAunNoCorrio) return res.status(400).json({message:"No se puede modificar una prediccion de una carrera que ya se corrio"});
+        // 1. Verificar si la predicción existe
+        if (!prediction) {
+            return res.status(404).json({ message: "Predicción no encontrada" });
+        }
 
-  prediction.prediccion = req.body.prediccion;
-  await prediction.save();
-  res.json({ message: "Actualizado", prediction });
+        // 2. Verificar si el usuario es dueño de esta predicción
+        if (prediction.userId.toString() !== req.user.id) {
+            return res.status(403).json({ message: "No autorizado para modificar esta predicción" });
+        }
+
+        // 3. Verificar si la carrera ya se corrió
+        const sePuedeModificar = await verificarFechaCarrera(prediction.raceYear, prediction.raceId);
+        if (!sePuedeModificar) {
+            return res.status(400).json({ message: "No se puede modificar, la carrera ya comenzó o finalizó." });
+        }
+
+        // 4. Actualizar y guardar
+        prediction.prediccion = nuevosDatos;
+        const updatedPrediction = await prediction.save();
+        
+        res.json({ message: "Predicción actualizada", prediccion: updatedPrediction });
+
+    } catch (err) {
+         res.status(500).json({ message: "Error del servidor", error: err.message });
+    }
 };
 
+/**
+ * @desc    Eliminar una predicción
+ * @route   DELETE /api/predictions/:id
+ * @access  Private
+ */
 export const eliminarPrediccion = async (req, res) => {
-  const { id } = req.params;
-  const prediction = await Prediction.findById(id);
+    const { id } = req.params; // ID de la predicción
 
-  if (!prediction || prediction.userId.toString() !== req.user.userId) {
-    return res.status(403).json({ message: "No autorizado" });
-  }
+    try {
+        const prediction = await Prediction.findById(id);
 
-  //FIXME: la API no tiene cargadas las carreras 2025
-  //const carreraAunNoCorrio = await verificarFechaCarrera(prediction.year, prediction.raceName );
-  //if (!carreraAunNoCorrio) return res.status(400).json({ message: "La carrera ya se corrió" });
+        // 1. Verificar si la predicción existe
+        if (!prediction) {
+            return res.status(404).json({ message: "Predicción no encontrada" });
+        }
 
-  try {
-    await Prediction.deleteOne({ _id: id, userId: req.userId });
-    res.json({ message: "Eliminado" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+        // 2. Verificar si el usuario es dueño
+        if (prediction.userId.toString() !== req.user.id) {
+            return res.status(403).json({ message: "No autorizado para eliminar esta predicción" });
+        }
+
+        // 3. Verificar si la carrera ya se corrió
+        const sePuedeEliminar = await verificarFechaCarrera(prediction.raceYear, prediction.raceId);
+        if (!sePuedeEliminar) {
+            return res.status(400).json({ message: "No se puede eliminar, la carrera ya comenzó o finalizó." });
+        }
+
+        // 4. Eliminar
+        await Prediction.deleteOne({ _id: id, userId: req.user.id }); // Doble chequeo por si acaso
+        
+        res.json({ message: "Predicción eliminada" });
+
+    } catch (err) {
+        res.status(500).json({ message: "Error del servidor", error: err.message });
+    }
 };
 
+/**
+ * @desc    Endpoint de prueba para calcular puntaje (NO GUARDA NADA)
+ * @route   POST /api/predictions/test-score
+ * @access  Public (o Admin, según definas en tus rutas)
+ */
 export async function procesarPrediction(req, res) {
-  //endpoint para calcular un puntaje
-  try {
-    const { anio, carrera, pilotoP1, pilotoP2, pilotoP3 } = req.body;
+    // Este endpoint es solo un "calculador" de prueba.
+    try {
+        const { anio, carrera, pilotoP1, pilotoP2, pilotoP3 } = req.body;
 
-    if (!anio || !carrera || !pilotoP1 || !pilotoP2 || !pilotoP3) {
-      return res.status(400).json({ error: "Faltan datos en la solicitud.", datos: req.body });
+        if (!anio || !carrera || !pilotoP1 || !pilotoP2 || !pilotoP3) {
+            return res.status(400).json({ error: "Faltan datos en la solicitud.", datos: req.body });
+        }
+
+        const resultadoReal = await obtenerResultadoCarrera(carrera, anio);
+        if (!resultadoReal || resultadoReal.length === 0) {
+            return res.status(404).json({
+                error: "No se encontraron resultados para la carrera especificada.",
+            });
+        }
+
+        const prediccionUsuario = [pilotoP1, pilotoP2, pilotorP3]; // Ajusta esto a tu lógica
+        
+        // ¡Esta función debe venir de tus utils!
+        const puntajes = calcularPuntajePrediccion(prediccionUsuario, resultadoReal);
+
+        res.json({ puntajes });
+    } catch (error) {
+        console.error("Error al procesar la predicción:", error);
+        res.status(500).json({ error: "Error interno del servidor." });
     }
-
-    // Obtener los resultados reales de la carrera
-    const resultadoReal = await obtenerResultadoCarrera(carrera, anio);
-    if (!resultadoReal || resultadoReal.length === 0) {
-      return res.status(404).json({
-        error: "No se encontraron resultados para la carrera especificada.",
-      });
-    }
-
-    // Construir la predicción del usuario
-    const prediccionUsuario = [pilotoP1, pilotoP2, pilotoP3];
-
-    // Calcular el puntaje
-    const puntajes = calcularPuntajePrediccion(prediccionUsuario, resultadoReal);
-
-    res.json({ puntajes });
-  } catch (error) {
-    console.error("Error al procesar la predicción:", error);
-    res.status(500).json({ error: "Error interno del servidor." });
-  }
 }

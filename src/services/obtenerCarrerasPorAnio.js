@@ -1,3 +1,5 @@
+import fetch from 'node-fetch';
+
 export async function obtenerCarrerasPorAnio(anio) {
     try {
       const response = await fetch(`https://api.jolpi.ca/ergast/f1/${anio}.json`);

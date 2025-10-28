@@ -1,48 +1,128 @@
 import User from '../models/user.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { JWT_SECRET } from '../config/config.js';
+import dotenv from 'dotenv';
 
-//import { users } from '../data/users.js';
+// Cargar variables de entorno
+dotenv.config();
 
-export async function register(req, res) {
-  const { username, password } = req.body;
-  try {
-    const userExists = await User.findOne({ username });
-    if (userExists) return res.status(409).json({ message: "Usuario ya existe" });
+const JWT_SECRET = process.env.JWT_SECRET;
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = new User({ username, password: hashedPassword });
-    await newUser.save();
+// --- Función Auxiliar para generar el Token ---
+// Es buena práctica tenerla separada
+const generateToken = (id, role) => {
+    return jwt.sign({ id, role }, JWT_SECRET, {
+        expiresIn: '24h', // El token durará 24 horas
+    });
+};
 
-    res.status(201).json({ message: "Usuario registrado correctamente" });
-  } catch (err) {
-    res.status(500).json({ message: "Error al registrar usuario", error: err });
-  }
-}
+// --- Registro de Nuevo Usuario ---
+export const registerUser = async (req, res) => {
+    try {
+        const { username, email, password } = req.body;
 
-export async function login(req, res) {
-  const { username, password } = req.body;
+        // 1. Verificar si faltan campos
+        if (!username || !email || !password) {
+            return res.status(400).json({ message: 'Por favor, completa todos los campos' });
+        }
 
-  try {
-    const user = await User.findOne({ username });
-    //console.log("🔎 Usuario encontrado:", user);
+        // 2. Verificar si el usuario (por username o email) ya existe
+        const userByUsername = await User.findOne({ username });
+        if (userByUsername) {
+            return res.status(400).json({ message: 'El nombre de usuario ya está en uso' });
+        }
+        
+        const userByEmail = await User.findOne({ email });
+        if (userByEmail) {
+            return res.status(400).json({ message: 'El email ya está registrado' });
+        }
 
-    if (!user) return res.status(401).json({ message: "Usuario no encontrado" });
+        // 3. Hashear la contraseña
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
 
-    const validPassword = await bcrypt.compare(password, user.password);
-    if (!validPassword) return res.status(401).json({ message: "Contraseña incorrecta" });
+        // 4. Crear el nuevo usuario
+        const newUser = new User({
+            username,
+            email,
+            password: hashedPassword,
+            // role se asigna por default según tu modelo
+        });
 
-    // if (!JWT_SECRET) {
-    //   console.error("🚨 JWT_SECRET está indefinido");
-    //   return res.status(500).json({ message: "Error interno: token no configurado" });
-    // }
+        const savedUser = await newUser.save();
 
-    const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: "7d" });
-    console.log("tokenJWT de",username,":", token);
-    res.status(200).json({ token });
-  } catch (err) {
-    console.error("🧨 Error en login:", err);
-    res.status(500).json({ message: "Error al iniciar sesión", error: err.message });
-  }
-}
+        // 5. Generar un token
+        const token = generateToken(savedUser._id, savedUser.role);
+
+        // 6. Enviar la respuesta JSON al frontend
+        res.status(201).json({
+            message: 'Usuario registrado con éxito',
+            token,
+            user: {
+                id: savedUser._id,
+                username: savedUser.username,
+                email: savedUser.email,
+                role: savedUser.role,
+            },
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error en el servidor al registrar el usuario' });
+    }
+};
+
+// --- Login de Usuario ---
+export const loginUser = async (req, res) => {
+    try {
+        const { username, password } = req.body;
+
+        // 1. Verificar si el usuario existe
+        const user = await User.findOne({ username });
+        if (!user) {
+            return res.status(400).json({ message: 'Credenciales inválidas (usuario)' });
+        }
+
+        // 2. Comparar la contraseña
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            return res.status(400).json({ message: 'Credenciales inválidas (contraseña)' });
+        }
+
+        // 3. Generar un token
+        const token = generateToken(user._id, user.role);
+
+        // 4. Enviar la respuesta JSON al frontend
+        res.status(200).json({
+            message: 'Login exitoso',
+            token,
+            user: {
+                id: user._id,
+                username: user.username,
+                email: user.email,
+                role: user.role,
+            },
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error en el servidor al intentar loguear' });
+    }
+};
+
+// --- Obtener Perfil de Usuario (Ejemplo de ruta protegida) ---
+export const getUserProfile = async (req, res) => {
+    try {
+        // req.user es adjuntado por el middleware 'protect'
+        // Buscamos al usuario pero excluimos la contraseña
+        const user = await User.findById(req.user.id).select('-password');
+        
+        if (user) {
+            res.json(user);
+        } else {
+            res.status(404).json({ message: 'Usuario no encontrado' });
+        }
+    } catch (error) {
+        res.status(500).json({ message: 'Error en el servidor' });
+    }
+};

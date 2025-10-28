@@ -1,15 +1,21 @@
+// src/routes/authRoutes.js
 import express from 'express'
-import { register, login } from '../controllers/authController.js';
-import { verificarJWT } from '../middlewares/authMiddleware.js';
-import { loginView } from '../controllers/viewsController.js';
+// Importamos los NUEVOS controladores de auth
+import { registerUser, loginUser, getUserProfile } from '../controllers/authController.js'; 
+// Importamos el NUEVO middleware
+import { protect } from '../middlewares/authMiddleware.js'; 
+// ELIMINADO: 'viewsController.js' ya no existe
 
 const router = express.Router();
 
-router.post('/register', register);
-router.get('/login', loginView);
-router.post('/login', login);
-router.get('/perfil', verificarJWT, (req, res) => {
-  res.json({ message: 'Acceso permitido', user: req.user });
-});
+// --- Rutas Públicas ---
+router.post('/register', registerUser);
+router.post('/login', loginUser);
+
+// ELIMINADO: router.get('/login', loginView);
+
+// --- Rutas Privadas ---
+// Ruta para que el usuario logueado obtenga sus propios datos
+router.get('/perfil', protect, getUserProfile); 
 
 export default router;

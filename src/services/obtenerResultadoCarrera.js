@@ -1,4 +1,10 @@
 import {obtenerRoundPorNombre} from './obtenerRoundPorNombre.js';
+import fetch from 'node-fetch';
+import https from 'https';
+
+const agent = new https.Agent({
+  rejectUnauthorized: false
+});
 
 export async function obtenerResultadoCarrera(nombreCarrera, year) {
     let resultados = await obtenerDesdeErgast(year, nombreCarrera);
@@ -21,7 +27,7 @@ async function obtenerDesdeErgast(year, nombreCarrera) {
         if (!round) return [];
 
         const url = `https://api.jolpi.ca/ergast/f1/${year}/${round}/results.json`; // Ej: "bahrain_2024"
-        const res = await fetch(url);
+        const res = await fetch(url, { agent });
         console.log("Consultando: ", url);
 
         if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
