@@ -13,7 +13,7 @@ import authRoutes from './routes/authRoutes.js';
 import adminRoutes from "./routes/adminRoutes.js";
 
 dotenv.config();
-//connectDB();
+connectDB();
 
 const app = express();
 app.use(cors());
