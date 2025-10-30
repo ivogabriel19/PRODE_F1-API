@@ -10,9 +10,9 @@ const resultSchema = new mongoose.Schema({
   raceId: String,
   raceYear: Number,
   prediccion: {
-    P1: String,
-    P2: String,
-    P3: String,
+    p1: String,
+    p2: String,
+    p3: String,
   },
   submittedAt: Date,
   processedAt: { type: Date, default: Date.now },

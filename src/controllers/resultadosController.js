@@ -2,6 +2,7 @@ import { calcularPuntajePrediccion } from '../utils/calcularPuntajePrediccion.js
 import { obtenerResultadoCarrera } from '../services/obtenerResultadoCarrera.js';
 import { obtenerResultadoCompletoCarrera as serviceObtenerResultadoCompletoCarrera } from '../services/obtenerResultadoCompletoCarrera.js';
 // 'obtenerRoundPorNombre' no se está usando aquí, pero lo dejamos por si acaso.
+import Result from "../models/result.js";
 // import { obtenerRoundPorNombre } from '../services/obtenerRoundPorNombre.js';
 
 /*
@@ -72,3 +73,23 @@ export async function obtenerResultadoCompletoCarrera(req, res) {
         res.status(500).json({ message: "Error del servidor", error: err.message });
     }
 }
+
+/**
+ * @desc    Obtener todos los resultados (predicciones procesadas) del usuario logueado
+ * @route   GET /api/resultados/mis-resultados
+ * @access  Private (¡NUEVO!)
+ */
+export const obtenerMisResultados = async (req, res) => {
+  try {
+    // 1. Buscamos en la colección 'Result'
+    // 2. Usamos 'req.user.id' que viene del middleware 'protect'
+    const resultados = await Result.find({ userId: req.user.id })
+      .sort({ processedAt: -1 }); // Ordenamos por fecha (más nuevos primero)
+    
+    res.json(resultados);
+  
+  } catch (err) {
+    console.error("Error al obtener mis resultados:", err);
+    res.status(500).json({ message: "Error del servidor", error: err.message });
+  }
+};

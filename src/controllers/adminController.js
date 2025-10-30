@@ -19,17 +19,17 @@ import { processPredictions } from "../utils/processPredictions.js"; // Tu scrip
  * 2. Llama al script 'processPredictions' para calcular y guardar los puntajes.
  */
 export async function procesarPuntajesCarrera(req, res) {
-    const { raceYear, raceId } = req.body; 
+    const { raceYear, raceId, round } = req.body; 
 
-    if (!raceYear || !raceId) {
-        return res.status(400).json({ message: "Faltan raceYear y raceId" });
-    }
+        if (!raceYear || !raceId || !round) {
+        return res.status(400).json({ message: "Faltan raceYear, raceId y round" });
+}
 
     try {
         // 1. Obtener los resultados OFICIALES desde la API externa
         // Asumimos que este servicio devuelve el formato que 'processPredictions' espera
-        const resultadosOficiales = await obtenerResultadoCarrera(raceId, raceYear);
-
+        const resultadosOficiales = await obtenerResultadoCarrera(round, raceYear);
+        
         if (!resultadosOficiales || resultadosOficiales.length === 0) {
             return res.status(404).json({ message: "Aún no hay resultados oficiales en la API externa para esa carrera." });
         }

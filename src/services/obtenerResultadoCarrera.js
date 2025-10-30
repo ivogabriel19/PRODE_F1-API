@@ -6,25 +6,25 @@ const agent = new https.Agent({
   rejectUnauthorized: false
 });
 
-export async function obtenerResultadoCarrera(nombreCarrera, year) {
-    let resultados = await obtenerDesdeErgast(year, nombreCarrera);
+export async function obtenerResultadoCarrera(round, year) {
+    let resultados = await obtenerDesdeErgast(year, round);
     //if (resultados) return { fuente: 'ergast', resultados };
     if (resultados) return  resultados ;
     return [] ;
 }
 
-async function obtenerDesdeErgast(year, nombreCarrera) {
+async function obtenerDesdeErgast(year, round) {
     try {
         //console.log('Nombre de la carrera:', nombreCarrera);
         //console.log('Año de la carrera:', year);
 
         //FIXME: normalizar nombre carreras
 
-        const round = await obtenerRoundPorNombre(nombreCarrera, year); // Desestructuración del slug
+        //const round = await obtenerRoundPorNombre(nombreCarrera, year); // Desestructuración del slug
 
-        console.log('Round obtenido:', round);
+        //console.log('Round obtenido:', round);
 
-        if (!round) return [];
+        //if (!round) return [];
 
         const url = `https://api.jolpi.ca/ergast/f1/${year}/${round}/results.json`; // Ej: "bahrain_2024"
         const res = await fetch(url, { agent });
