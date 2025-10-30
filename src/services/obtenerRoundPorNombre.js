@@ -1,14 +1,9 @@
 import fetch from 'node-fetch';
-import https from 'https';
-
-const agent = new https.Agent({
-  rejectUnauthorized: false
-});
 
 export async function obtenerRoundPorNombre(nombreCarrera, anio) {
     try {
         const url = `https://api.jolpi.ca/ergast/f1/${anio}.json`;
-        const res = await fetch(url, { agent });
+        const res = await fetch(url);
         //console.log("Consultando: ", url);
         if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
         const data = await res.json();

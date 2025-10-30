@@ -5,10 +5,13 @@ import Notification from "../models/notification.js";
 import { calcularPuntajePrediccion } from "./calcularPuntajePrediccion.js";
 import { obtenerResultadoCarrera } from "../services/obtenerResultadoCarrera.js";
 
-export async function processPredictions() {
+export async function processPredictions(raceId, raceYear, resultadosOficiales) {
   try {
     const now = new Date();
-    const predictions = await Prediction.find({ raceDate: { $lt: new Date() } });
+    const predictions = await Prediction.find({ 
+      raceId: raceId, 
+      raceYear: raceYear 
+    });
     if (!predictions || predictions.length === 0) {
       console.log("No hay predicciones vencidas para procesar.");
       return;
@@ -18,7 +21,8 @@ export async function processPredictions() {
       const { raceId, raceYear, userId, prediccion } = prediction;
 
       // 1. Obtener resultado real desde la función proporcionada
-      const resultadoReal = await obtenerResultadoCarrera(raceId, raceYear); // raceId = nombre carrera
+      //const resultadoReal = await obtenerResultadoCarrera(raceId, raceYear); // raceId = nombre carrera
+      const resultadoReal = resultadosOficiales;
 
       if (!resultadoReal || resultadoReal.length === 0) {
         console.log(`Sin resultados para carrera ${raceId} ${raceYear}`);
@@ -26,7 +30,7 @@ export async function processPredictions() {
       }
 
       // 2. Calcular puntaje
-      const prediccionArray = [prediccion.P1, prediccion.P2, prediccion.P3];
+      const prediccionArray = [prediccion.p1, prediccion.p2, prediccion.p3];
       const { puntos, coincidenciasExactas, prediccionPerfecta } =
         calcularPuntajePrediccion(prediccionArray, resultadoReal);
 
@@ -64,7 +68,7 @@ export async function processPredictions() {
       console.log(`Puntos: ${puntos}, Coincidencias exactas: ${coincidenciasExactas}, Perfecta: ${prediccionPerfecta}`);
     }
 
-    console.log("✔ Todas las predicciones vencidas han sido procesadas.");
+    console.log(`✔ Todas las predicciones para ${raceId} (${raceYear}) han sido procesadas.`);
   } catch (error) {
     console.error("❌ Error procesando predicciones:", error);
   }

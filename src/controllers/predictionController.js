@@ -1,7 +1,7 @@
 import Prediction from "../models/prediction.js";
 import { verificarFechaCarrera } from "../services/verificarFechaCarrera.js";
-import { obtenerResultadoCarrera } from "../services/obtenerResultadoCarrera.js"; 
-import { obtenerFechaCarrera } from "../services/obtenerFechaCarrera.js"; 
+import { obtenerResultadoCarrera } from "../services/obtenerResultadoCarrera.js";
+import { obtenerFechaCarrera } from "../services/obtenerFechaCarrera.js";
 // NOTA: 'calcularPuntajePrediccion' no se usa en este controlador.
 // Se usará en 'adminController' o 'resultadosController' 
 // cuando se procesen los puntajes para TODOS los usuarios.
@@ -13,7 +13,7 @@ import { obtenerFechaCarrera } from "../services/obtenerFechaCarrera.js";
  */
 export const crearPrediccion = async (req, res) => {
     // req.user es insertado por el middleware 'protect'
-    const userId = req.user.id; 
+    const userId = req.user.id;
     const { raceYear, raceId, prediccion } = req.body;
 
     if (!raceYear || !raceId || !prediccion) {
@@ -23,7 +23,7 @@ export const crearPrediccion = async (req, res) => {
     try {
         // 1. Verificar si la carrera ya se corrió (o está por empezar)
         // Asumimos que verificarFechaCarrera devuelve 'true' SI AÚN SE PUEDE PREDECIR
-        const sePuedePredecir = await verificarFechaCarrera(raceYear, raceId); 
+        const sePuedePredecir = await verificarFechaCarrera(raceYear, raceId);
         if (!sePuedePredecir) {
             return res.status(400).json({ message: "No se puede predecir, la carrera ya comenzó o finalizó." });
         }
@@ -38,16 +38,16 @@ export const crearPrediccion = async (req, res) => {
         const raceDate = await obtenerFechaCarrera(raceYear, raceId);
 
         // 4. Crear y guardar la nueva predicción
-        const nuevaPrediccion = new Prediction({ 
-            userId, 
-            raceId, 
-            raceYear, 
-            raceDate, 
-            prediccion 
+        const nuevaPrediccion = new Prediction({
+            userId,
+            raceId,
+            raceYear,
+            raceDate,
+            prediccion
         });
-        
+
         const savedPrediction = await nuevaPrediccion.save();
-        
+
         res.status(201).json({ message: "Predicción creada con éxito", prediccion: savedPrediction });
 
     } catch (err) {
@@ -64,7 +64,7 @@ export const crearPrediccion = async (req, res) => {
 export const obtenerMisPredicciones = async (req, res) => {
     try {
         const predicciones = await Prediction.find({ userId: req.user.id })
-                                            .sort({ raceDate: 1 }); // Ordenadas por fecha
+            .sort({ raceDate: 1 }); // Ordenadas por fecha
         res.json(predicciones);
     } catch (err) {
         res.status(500).json({ message: "Error del servidor", error: err.message });
@@ -102,11 +102,11 @@ export const actualizarPrediccion = async (req, res) => {
         // 4. Actualizar y guardar
         prediction.prediccion = nuevosDatos;
         const updatedPrediction = await prediction.save();
-        
+
         res.json({ message: "Predicción actualizada", prediccion: updatedPrediction });
 
     } catch (err) {
-         res.status(500).json({ message: "Error del servidor", error: err.message });
+        res.status(500).json({ message: "Error del servidor", error: err.message });
     }
 };
 
@@ -139,7 +139,7 @@ export const eliminarPrediccion = async (req, res) => {
 
         // 4. Eliminar
         await Prediction.deleteOne({ _id: id, userId: req.user.id }); // Doble chequeo por si acaso
-        
+
         res.json({ message: "Predicción eliminada" });
 
     } catch (err) {
@@ -169,7 +169,7 @@ export async function procesarPrediction(req, res) {
         }
 
         const prediccionUsuario = [pilotoP1, pilotoP2, pilotorP3]; // Ajusta esto a tu lógica
-        
+
         // ¡Esta función debe venir de tus utils!
         const puntajes = calcularPuntajePrediccion(prediccionUsuario, resultadoReal);
 
@@ -177,5 +177,33 @@ export async function procesarPrediction(req, res) {
     } catch (error) {
         console.error("Error al procesar la predicción:", error);
         res.status(500).json({ error: "Error interno del servidor." });
+    }
+}
+
+export async function obtenerPrediccionCarrera(req, res) {
+    try {
+        // Obtenemos los parámetros de la URL
+        const { year, raceId } = req.params;
+
+        // Obtenemos el userId del token (añadido por el middleware 'protect')
+        const userId = req.user._id;
+
+        const prediction = await Prediction.findOne({
+            userId: userId,
+            raceYear: year, // Asumo que se llama 'raceYear' en tu modelo
+            // Si usas 'round' en lugar de 'raceId' para identificarla, usa esto.
+            // Si usas 'raceId', cambia 'raceRound: round' por 'raceId: req.params.raceId'
+            raceId: raceId // !! Ajusta esto si el campo se llama 'raceId' en tu modelo 'prediction'
+        });
+
+        if (!prediction) {
+            // No es un error, simplemente no se encontró
+            return res.status(200).json(null);
+        }
+
+        res.json(prediction);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Error al buscar la predicción' });
     }
 }

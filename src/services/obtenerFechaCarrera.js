@@ -1,12 +1,12 @@
 import fetch from 'node-fetch';
 
-export async function obtenerFechaCarrera(year, raceName) {
+export async function obtenerFechaCarrera(year, raceId) {
   try {
     const res = await fetch(`https://api.jolpi.ca/ergast/f1/${year}.json`);
     const data = await res.json();
     const carreras = data.MRData.RaceTable.Races;
     const carrera = carreras.find((c) =>
-      c.raceName.toLowerCase().includes(raceName.toLowerCase())
+      c.Circuit.circuitId.toLowerCase() === raceId.toLowerCase()
     );
     if (!carrera) {
       console.log("No se encontro la carrera en el calendario");
